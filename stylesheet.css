@@ -1,0 +1,22 @@
+.container-center {
+    width: 100%;
+    text-align: center;
+}
+
+.main-container {
+    display: inline-flex;
+    margin-top: 10px;
+}
+
+.controls-container {
+    margin-left: 25px;
+    text-align: left;
+}
+
+.canvas-main {
+    background-color: black;
+    border-style: solid;
+    border-color: black;
+    border-width: 3px;
+    margin-bottom: 10px;
+}
