@@ -8,16 +8,33 @@
 
 	attribute vec4 vPosition;
 	attribute vec4 vColor;
+	attribute vec4 vNormal;
+    uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+    uniform vec4 lightPosition;
 	uniform float vPointSize;
 	uniform mat4 projMatrix;
-	uniform mat4 viewMatrix;
 	uniform mat4 modelMatrix;
+	uniform float shininess;
 	varying vec4 fColor;
 
 	void main() {
-	    gl_Position = projMatrix * viewMatrix * modelMatrix * vPosition;
+	    vec3 pos = (modelMatrix * vPosition).xyz;
+
+        vec3 L = normalize(lightPosition.xyz - pos);
+        vec3 N = normalize(modelMatrix * vNormal).xyz;
+        vec3 V = normalize(-pos);
+        vec3 R = (2.0 * dot(L, N) * N) - L;
+
+        vec4 diffuse = diffuseProduct * dot(L, N);
+        vec4 ambient = ambientProduct;
+        vec4 specular = specularProduct * pow(max(dot(V, R), 0.0), shininess);
+
+        fColor = diffuse + specular + ambient;
+        fColor.a = 1.0;
+
+	    gl_Position = projMatrix * modelMatrix * vPosition;
 	    gl_PointSize = vPointSize;
-	    fColor = vColor;
+	    // fColor = vColor;
   	}
 	</script>
 
@@ -53,15 +70,11 @@
             <br>
         </div>
         <div class="controls-container">
-            <h2>Controls (ON/OFF):</h2>
-            <p><strong>X: </strong>Translate continuously in the positive X direction.</p>
-            <p><strong>C: </strong>Translate continuously in the negative X direction.</p>
-            <p><strong>Y: </strong>Translate continuously in the positive Y direction.</p>
-            <p><strong>U: </strong>Translate continuously in the negative Y direction.</p>
-            <p><strong>Z: </strong>Translate continuously in the positive Z direction.</p>
-            <p><strong>A: </strong>Translate continuously in the negative Z direction.</p>
-            <p><strong>R: </strong>Rotate continuously around the X axis.</p>
-            <p><strong>B: </strong>Pulsing the mesh faces continuously.</p>
+            <h2>Controls:</h2>
+            <p><strong>p: </strong>Increase spotlight cut off angle (increase cone angle).</p>
+            <p><strong>P: </strong>Decrease spotlight cut off angle (decrease cone angle).</p>
+            <p><strong>m: </strong>The scene is shaded using Gouraud lighting (smooth shading).</p>
+            <p><strong>M: </strong>The scene is shaded using flat shading.</p>
         </div>
     </div>
 </div>

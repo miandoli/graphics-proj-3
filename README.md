@@ -9,7 +9,7 @@ Open in your browser
 
 ## Files
 - index.html
-    - Contains the html with the canvas, file selector, etc.
+    - Contains the html with the canvas, controls, etc.
 - index.js
     - Contains all the OpenGL code for displaying and manipulating the meshes and logic for parsing the files and event listeners for the users inputs
 - stylesheet.css
