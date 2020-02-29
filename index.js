@@ -15,6 +15,8 @@ function main() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(1.0, 1.0, 1.0, 1.0);
     gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.BACK);
 
     preRender();
 }
@@ -34,6 +36,7 @@ const vb = vec4(0.0, 0.942809, 0.333333, 1.0);
 const vc = vec4(-0.816497, -0.471405, 0.333333, 1.0);
 const vd = vec4(0.816497, -0.471405, 0.333333, 1.0);
 
+// Returns a list of points of a sphere
 function sphere() {
     let points = [];
     // Sub-divide triangles
@@ -44,16 +47,21 @@ function sphere() {
     return points;
 }
 
+// Divides the triangle into sub-triangles
 function divideTriangle(a, b, c, count) {
+    // If over the sub-division count, keep dividing
     if (count > 0) {
+        // Mix the vertexes
         let ab = mix(a, b, 0.5);
         let ac = mix(a, c, 0.5);
         let bc = mix(b, c, 0.5);
 
+        // Normalize the new vertexes
         ab = normalize(ab, true);
         ac = normalize(ac, true);
         bc = normalize(bc, true);
 
+        // Recurse
         let points = [];
         points = points.concat(divideTriangle(a, ab, ac, count - 1));
         points = points.concat(divideTriangle(ab, b, bc, count - 1));
@@ -61,19 +69,12 @@ function divideTriangle(a, b, c, count) {
         points = points.concat(divideTriangle(ab, bc, ac, count - 1));
         return points;
     } else {
-        return triangle(a, b, c);
+        // Return the points of a singular triangle
+        return [a, c, b];
     }
 }
 
-function triangle(a, b, c, color) {
-    // Push points
-    let points = [];
-    points.push(a);
-    points.push(b);
-    points.push(c);
-    return points;
-}
-
+// Returns a list of points of a cube
 function cube() {
     let verts = [];
     verts = verts.concat(quad( 1, 0, 3, 2 ));
@@ -85,6 +86,7 @@ function cube() {
     return verts;
 }
 
+// Gets the corresponding vertexes for the cube (removes repeats)
 function quad(a, b, c, d) {
     let verts = [];
     const vertices = [
@@ -107,6 +109,7 @@ function quad(a, b, c, d) {
 let modelMatrix;
 let coneAngle = 0.99;
 const ANGLE_DELTA = 0.001;
+// Runs all the graphics code that only needs to be ran once
 function preRender() {
     // Set the point size
     const vPointSize = gl.getUniformLocation(program, "vPointSize");
@@ -142,12 +145,14 @@ const up = vec3(0.0, 1.0, 0.0);
 
 let stack = [];
 let camMatrix;
+// Angles of axes
 let angles = [
     [0.0],
     [0.0, 0.0],
     [0.0, 0.0, 0.0, 0.0]
 ];
 const ROTATE_SPEED = [0.25, 0.5, 0.75];
+// Colors
 const white = vec3(1.0, 1.0, 1.0);
 const red = vec3(1.0, 0.0, 0.0);
 const blue = vec3(0.0, 0.0, 1.0);
@@ -159,6 +164,7 @@ function render() {
     // Clear the buffer bits
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    // Points for spheres and cubes
     const sphere1 = sphere();
     const cube1 = cube();
 
@@ -231,6 +237,7 @@ function render() {
         camMatrix = stack.pop();
     camMatrix = stack.pop();
 
+    // Update angles
     for (let i = 0; i < angles.length; i++) {
         let angleI = angles[i];
         for (let j = 0; j < angleI.length; j++) {
@@ -241,21 +248,25 @@ function render() {
     requestAnimationFrame(render);
 }
 
-function draw(points, color) {
+// Draws the shape along with its color
+function draw(points, color, isSphere) {
+    // Gets the normals for the vertexes
     let vNormals = [];
     for (let i = 0; i < points.length; i++) {
         const point = points[i];
         vNormals.push(point[0], point[1], point[2], 0.0);
     }
 
+    // Gets the surface normals
     let fNormals = [];
     for (let i = 0; i < points.length; i += 3) {
-        const norm = calcNorm(points[i], points[i + 1], points[i + 2]);
+        const norm = calcNorm(points[i], points[i + 1], points[i + 2], isSphere);
         fNormals.push(norm[0], norm[1], norm[2], 0.0);
         fNormals.push(norm[0], norm[1], norm[2], 0.0);
         fNormals.push(norm[0], norm[1], norm[2], 0.0);
     }
 
+    // Flatten the shapes' points
     const fPoints = flatten(points);
 
     // Create the buffer for the vertexes
@@ -288,11 +299,12 @@ function draw(points, color) {
     gl.enableVertexAttribArray(fNormal);
     gl.vertexAttribPointer(fNormal, 4, gl.FLOAT, false, 0, 0);
 
+    // Color of the material
     const matColor = vec4(color[0], color[1], color[2], 1.0);
-
     const diffuseProduct = mult(lightDiffuse, matColor);
     const ambientProduct = mult(lightAmbient, matColor);
 
+    // Sets the uniform values with the colors
     gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
 
@@ -300,6 +312,7 @@ function draw(points, color) {
     gl.drawArrays(gl.TRIANGLES, 0, fPoints.length);
 }
 
+// Draws the list of points as a line
 function drawLines(points) {
     const fPoints = flatten(points);
 
@@ -313,11 +326,12 @@ function drawLines(points) {
     gl.enableVertexAttribArray(vPosition);
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
 
+    // Color of the material
     const matColor = vec4(0.0, 0.0, 0.0, 1.0);
-
     const diffuseProduct = mult(lightDiffuse, matColor);
     const ambientProduct = mult(lightAmbient, matColor);
 
+    // Sets the uniform values with the colors
     gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
 
@@ -326,10 +340,14 @@ function drawLines(points) {
 
 }
 
-function calcNorm(p1, p2, p3) {
+// Calculates the normal of the trianlge using the Newell method
+function calcNorm(p2, p1, p3) {
+    // Calculates the two vectors from the points
     const u = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]; //p2 - p1
     const v = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]]; // p3 - p1
-    return vec4(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0], 1.0);
+    // Newell method
+    let n = vec4(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0], 1.0);
+    return vec4(-n[0], -n[1], -n[2], 1.0);
 }
 
 // Handle the key press events
@@ -337,22 +355,22 @@ document.onkeypress = function(e) {
     // Key press events
     const key = e.key;
     switch(key) {
-        case 'p':
+        case 'p': // Decrease the cone angle
             if (coneAngle !== 0.0) {
                 coneAngle -= ANGLE_DELTA;
             }
             gl.uniform1f(gl.getUniformLocation(program, "coneAngle"), coneAngle);
             break;
-        case 'P':
+        case 'P': // Increase the cone angle
             if (coneAngle !== 1.0) {
                 coneAngle += ANGLE_DELTA;
             }
             gl.uniform1f(gl.getUniformLocation(program, "coneAngle"), coneAngle);
             break;
-        case 'm':
+        case 'm': // Smooth lighting
             gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 0);
             break;
-        case 'M':
+        case 'M': // Flat lighting
             gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 1);
             break;
     }
