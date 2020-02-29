@@ -19,18 +19,12 @@ function main() {
     preRender();
 }
 
-// let points = [];
-// let colors = [];
-// let normals = [];
-
 const SUB_DIVISIONS = 5;
-const lightPosition = vec4(10.0, 10.0, 10.0, 0.0);
-const lightAmbient = vec4(0.2, 0.2, 0.2, 1.0);
+const lightPosition = vec4(5.0, 0.0, 25.0, 0.0);
+const lightAmbient = vec4(0.3, 0.3, 0.3, 1.0);
 const lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 const lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 
-const materialAmbient = vec4(1.0, 0.0, 1.0, 1.0);
-const materialDiffuse = vec4(1.0, 0.8, 0.0, 1.0);
 const materialSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 const materialShininess = 20.0;
 
@@ -105,12 +99,14 @@ function quad(a, b, c, d) {
     ];
     const indices = [a, b, c, a, c, d];
     for (let i = 0; i < indices.length; i++) {
-        verts.push( vertices[indices[i]] );
+        verts.push(vertices[indices[i]]);
     }
     return verts;
 }
 
 let modelMatrix;
+let coneAngle = 0.99;
+const ANGLE_DELTA = 0.001;
 function preRender() {
     // Set the point size
     const vPointSize = gl.getUniformLocation(program, "vPointSize");
@@ -121,19 +117,21 @@ function preRender() {
     const projMatrix = gl.getUniformLocation(program, 'projMatrix');
     gl.uniformMatrix4fv(projMatrix, false, flatten(pers));
 
-    const diffuseProduct = mult(lightDiffuse, materialDiffuse);
     const specularProduct = mult(lightSpecular, materialSpecular);
-    const ambientProduct = mult(lightAmbient, materialAmbient);
 
-    // Shininess
-    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
+    // Color
     gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
-    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
 
     // Get model matrix
     modelMatrix = gl.getUniformLocation(program, "modelMatrix");
+
+    // Set cone angle
+    gl.uniform1f(gl.getUniformLocation(program, "coneAngle"), coneAngle);
+
+    // Set smooth shading
+    gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 0);
 
     render();
 }
@@ -145,11 +143,18 @@ const up = vec3(0.0, 1.0, 0.0);
 let stack = [];
 let camMatrix;
 let angles = [
-    [30.0],
-    [60.0, 45.0],
-    [10.0, 70.0, 45.0, 25.0]
+    [0.0],
+    [0.0, 0.0],
+    [0.0, 0.0, 0.0, 0.0]
 ];
-const ROTATE_SPEED = [0.25, 0.5, 0.75];
+const ROTATE_SPEED = [1.1, 0.25, 0.5];
+const white = vec3(1.0, 1.0, 1.0);
+const red = vec3(1.0, 0.0, 0.0);
+const blue = vec3(0.0, 0.0, 1.0);
+const green = vec3(0.0, 1.0, 0.0);
+const babyBlue = vec3(0.25, 1.0, 0.75);
+const fuscia = vec3(1.0, 0.0, 1.0);
+const yellow = vec3(1.0, 1.0, 0.3);
 function render() {
     // Clear the buffer bits
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -164,26 +169,28 @@ function render() {
     stack.push(camMatrix);
         camMatrix = mult(translate(0.0, 3.0, 0.0), mult(camMatrix, rotateY(angles[0][0])));
         gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-        draw(cube1, vec3(1.0, 1.0, 1.0));
+        draw(cube1, white);
+        drawLines([vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, -3.0, 0.0, 1.0), vec4(-4.0, -3.0, 0.0, 1.0), vec4(4.0, -3.0, 0.0, 1.0)]);
 
         // 1, 0
         stack.push(camMatrix);
             camMatrix = mult(mult(camMatrix, translate(-4.0, -3.0, 0.0)), rotateY(angles[1][0]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-            draw(sphere1, vec3(1.0, 1.0, 1.0));
+            draw(sphere1, blue);
+            drawLines([vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, -3.0, 0.0, 1.0), vec4(-2.0, -3.0, 0.0, 1.0), vec4(2.0, -3.0, 0.0, 1.0)]);
 
             // 2, 0
             stack.push(camMatrix);
                 camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[2][0]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-                draw(cube1, vec3(1.0, 1.0, 1.0));
+                draw(cube1, green);
             camMatrix = stack.pop();
 
             // 2, 1
             stack.push(camMatrix);
                 camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[2][1]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-                draw(sphere1, vec3(1.0, 1.0, 1.0));
+                draw(sphere1, red);
             camMatrix = stack.pop();
         camMatrix = stack.pop();
 
@@ -191,20 +198,21 @@ function render() {
         stack.push(camMatrix);
             camMatrix = mult(mult(camMatrix, translate(4.0, -3.0, 0.0)), rotateY(angles[1][1]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-            draw(cube1, vec3(1.0, 1.0, 1.0));
+            draw(cube1, fuscia);
+            drawLines([vec4(0.0, 0.0, 0.0, 1.0), vec4(0.0, -3.0, 0.0, 1.0), vec4(-2.0, -3.0, 0.0, 1.0), vec4(2.0, -3.0, 0.0, 1.0)]);
 
             // 2, 2
             stack.push(camMatrix);
                 camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[2][2]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-                draw(sphere1, vec3(1.0, 1.0, 1.0));
+                draw(sphere1, babyBlue);
             camMatrix = stack.pop();
 
             // 2, 3
             stack.push(camMatrix);
                 camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[2][3]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-                draw(cube1, vec3(1.0, 1.0, 1.0));
+                draw(cube1, yellow);
             camMatrix = stack.pop();
         camMatrix = stack.pop();
     camMatrix = stack.pop();
@@ -220,12 +228,18 @@ function render() {
 }
 
 function draw(points, color) {
-    let normals = [];
-    let colors = [];
+    let vNormals = [];
     for (let i = 0; i < points.length; i++) {
         const point = points[i];
-        normals.push(point[0], point[1], point[2], 0.0);
-        colors.push(color);
+        vNormals.push(point[0], point[1], point[2], 0.0);
+    }
+
+    let fNormals = [];
+    for (let i = 0; i < points.length; i += 3) {
+        const norm = calcNorm(points[i], points[i + 1], points[i + 2]);
+        fNormals.push(norm[0], norm[1], norm[2], 0.0);
+        fNormals.push(norm[0], norm[1], norm[2], 0.0);
+        fNormals.push(norm[0], norm[1], norm[2], 0.0);
     }
 
     const fPoints = flatten(points);
@@ -243,25 +257,65 @@ function draw(points, color) {
     // Create the buffer for the normals
     const nBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, nBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(normals), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(vNormals), gl.STATIC_DRAW);
+
+    // Set up the memory for the vertex normals
+    const vNormal = gl.getAttribLocation( program, "vNormal");
+    gl.enableVertexAttribArray(vNormal);
+    gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 0, 0);
+
+    // Create the buffer for the face normals
+    const fnBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, fnBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(fNormals), gl.STATIC_DRAW);
 
     // Set up the memory for the normals
-    const vNormal = gl.getAttribLocation( program, "vNormal");
-    gl.vertexAttribPointer(vNormal, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vNormal);
+    const fNormal = gl.getAttribLocation( program, "fNormal");
+    gl.enableVertexAttribArray(fNormal);
+    gl.vertexAttribPointer(fNormal, 4, gl.FLOAT, false, 0, 0);
 
-    // Create the buffer for the shaders
-    const cBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(colors), gl.STATIC_DRAW);
+    const matColor = vec4(color[0], color[1], color[2], 1.0);
 
-    // Set up the memory for the shaders
-    const vColor = gl.getAttribLocation(program, "vColor");
-    gl.enableVertexAttribArray(vColor);
-    gl.vertexAttribPointer(vColor, 4, gl.FLOAT, false, 0, 0);
+    const diffuseProduct = mult(lightDiffuse, matColor);
+    const ambientProduct = mult(lightAmbient, matColor);
+
+    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
+    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
 
     // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, fPoints.length);
+}
+
+function drawLines(points) {
+    const fPoints = flatten(points);
+
+    // Create the buffer for the vertexes
+    const vBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, fPoints, gl.STATIC_DRAW);
+
+    // Set up the memory for the vertexes
+    const vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.enableVertexAttribArray(vPosition);
+    gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+
+    const matColor = vec4(0.0, 0.0, 0.0, 1.0);
+
+    const diffuseProduct = mult(lightDiffuse, matColor);
+    const ambientProduct = mult(lightAmbient, matColor);
+
+    gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
+    gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
+
+    // Draw lines
+    gl.drawArrays(gl.LINE_STRIP, 0, fPoints.length);
+
+}
+
+function calcNorm(p1, p2, p3) {
+    const u = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]; //p2 - p1
+    const v = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]]; // p3 - p1
+    return vec4(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0], 1.0);
 }
 
 // Handle the key press events
@@ -270,16 +324,22 @@ document.onkeypress = function(e) {
     const key = e.key;
     switch(key) {
         case 'p':
-            console.log("Fuck");
+            if (coneAngle !== 0.0) {
+                coneAngle -= ANGLE_DELTA;
+            }
+            gl.uniform1f(gl.getUniformLocation(program, "coneAngle"), coneAngle);
             break;
         case 'P':
-            console.log("FUCK");
+            if (coneAngle !== 1.0) {
+                coneAngle += ANGLE_DELTA;
+            }
+            gl.uniform1f(gl.getUniformLocation(program, "coneAngle"), coneAngle);
             break;
         case 'm':
-            console.log("Fuck");
+            gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 0);
             break;
         case 'M':
-            console.log("FUCK");
+            gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 1);
             break;
     }
 };
