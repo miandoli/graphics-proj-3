@@ -22,12 +22,21 @@ function main() {
 }
 
 const SUB_DIVISIONS = 4;
+
+// Colors
+const white = vec4(1.0, 1.0, 1.0, 1.0);
+const black = vec4(0.0, 0.0, 0.0, 1.0);
+const red = vec4(1.0, 0.0, 0.0, 1.0);
+const blue = vec4(0.0, 0.0, 1.0, 1.0);
+const green = vec4(0.0, 1.0, 0.0, 1.0);
+const babyBlue = vec4(0.25, 1.0, 0.75, 1.0);
+const fuscia = vec4(1.0, 0.0, 1.0, 1.0);
+const yellow = vec4(1.0, 1.0, 0.3, 1.0);
+
 const lightPosition = vec4(5.0, 0.0, 25.0, 0.0);
 const lightAmbient = vec4(0.3, 0.3, 0.3, 1.0);
 const lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 const lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
-
-const materialSpecular = vec4(1.0, 1.0, 1.0, 1.0);
 const materialShininess = 20.0;
 
 // Unit sphere
@@ -116,14 +125,11 @@ function preRender() {
     gl.uniform1f(vPointSize, 10.0);
 
     // Set-up perspective view
-    const pers = perspective(35.0, 1, 0.1, 10000);
+    const pers = perspective(60.0, 1, 0.1, 10000);
     const projMatrix = gl.getUniformLocation(program, 'projMatrix');
     gl.uniformMatrix4fv(projMatrix, false, flatten(pers));
 
-    const specularProduct = mult(lightSpecular, materialSpecular);
-
     // Color
-    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
 
@@ -139,7 +145,7 @@ function preRender() {
     render();
 }
 
-const eye = vec3(0.0, 0.0, 25.0);
+const eye = vec3(10.0, 5.0, 10.0);
 const at = vec3(0.0, 0.0, 0.0);
 const up = vec3(0.0, 1.0, 0.0);
 
@@ -151,15 +157,7 @@ let angles = [
     [0.0, 0.0],
     [0.0, 0.0, 0.0, 0.0]
 ];
-const ROTATE_SPEED = [1.0, 1.5, 2.0];
-// Colors
-const white = vec3(1.0, 1.0, 1.0);
-const red = vec3(1.0, 0.0, 0.0);
-const blue = vec3(0.0, 0.0, 1.0);
-const green = vec3(0.0, 1.0, 0.0);
-const babyBlue = vec3(0.25, 1.0, 0.75);
-const fuscia = vec3(1.0, 0.0, 1.0);
-const yellow = vec3(1.0, 1.0, 0.3);
+const ROTATE_SPEED = [0.25, 0.5, 1.0];
 function render() {
     // Clear the buffer bits
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -184,6 +182,12 @@ function render() {
 
     // Set camera view
     camMatrix = lookAt(eye, at, up);
+    gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
+
+    // Background planes
+    drawOther(getPlane(0), red, false);
+    drawOther(getPlane(1), blue, false);
+    drawOther(getPlane(2), green, false);
 
     // 0, 0
     stack.push(camMatrix);
@@ -192,7 +196,7 @@ function render() {
         draw(cube1, white);
         camMatrix = mult(camMatrix, rotateY(-2.0 * angles[0][0]));
         gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-        drawLines(line1);
+        drawOther(line1, black, true);
 
         // 1, 0
         stack.push(camMatrix);
@@ -201,7 +205,7 @@ function render() {
             draw(sphere1, blue);
             camMatrix = mult(camMatrix, rotateY(-2.0 * angles[1][0]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-            drawLines(line2);
+            drawOther(line2, black, true);
 
             // 2, 0
             stack.push(camMatrix);
@@ -225,7 +229,7 @@ function render() {
             draw(cube1, fuscia);
             camMatrix = mult(camMatrix, rotateY(-2.0 * angles[1][1]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
-            drawLines(line2);
+            drawOther(line2, black, true);
 
             // 2, 2
             stack.push(camMatrix);
@@ -329,13 +333,15 @@ function draw(points, color) {
     // Sets the uniform values with the colors
     gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
+    const specularProduct = mult(lightSpecular, white);
+    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
 
     // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, flattenPoints.length);
 }
 
-// Draws the list of points as a line
-function drawLines(points) {
+// Draws points or background elements
+function drawOther(points, color, isLine) {
     const fPoints = flatten(points);
 
     // Create the buffer for the vertexes
@@ -349,17 +355,22 @@ function drawLines(points) {
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
 
     // Color of the material
-    const matColor = vec4(0.0, 0.0, 0.0, 1.0);
-    const diffuseProduct = mult(lightDiffuse, matColor);
-    const ambientProduct = mult(lightAmbient, matColor);
+    const matColor = color;
+    const diffuseProduct = black;
+    const ambientProduct = matColor;
 
     // Sets the uniform values with the colors
     gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(diffuseProduct));
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
+    const specularProduct = mult(lightSpecular, black);
+    gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
 
-    // Draw lines
-    gl.drawArrays(gl.LINE_STRIP, 0, fPoints.length);
-
+    // Draw lines or triangles
+    if (isLine) {
+        gl.drawArrays(gl.LINE_STRIP, 0, fPoints.length);
+    } else {
+        gl.drawArrays(gl.TRIANGLES, 0, fPoints.length);
+    }
 }
 
 // Calculates the normal of the triangle using the Newell method
@@ -375,6 +386,28 @@ function calcNorm(p1, p2, p3) {
 // Gets the center of a triangle
 function getCenter(p1, p2, p3) {
     return vec4((p1[0] + p2[0] + p3[0]) / 3.0, (p1[1] + p2[1] + p3[1]) / 3.0, (p1[2] + p2[2] + p3[2]) / 3.0, 1.0);
+}
+
+function getPlane(num) {
+    const size = 50.0;
+    const xOffset = -10.0;
+    const yOffset = -5.0;
+    const zOffset = -10.0;
+    const a = vec4(xOffset, yOffset, zOffset, 1.0);
+    const b = vec4(size + xOffset, yOffset, zOffset, 1.0);
+    const c = vec4(size + xOffset, yOffset, size + zOffset, 1.0);
+    const d = vec4(xOffset, yOffset, size + zOffset, 1.0);
+    const e = vec4(size + xOffset, size + yOffset, zOffset, 1.0);
+    const f = vec4(xOffset, size + yOffset, zOffset, 1.0);
+    const g = vec4(xOffset, size + yOffset, size + zOffset, 1.0);
+    switch (num) {
+        case 0:
+            return [a, c, b, a, d, c];
+        case 1:
+            return [a, b, e, a, e, f];
+        case 2:
+            return [d, a, f, d, f, g];
+    }
 }
 
 // Handle the key press events
