@@ -151,7 +151,7 @@ let angles = [
     [0.0, 0.0],
     [0.0, 0.0, 0.0, 0.0]
 ];
-const ROTATE_SPEED = [0.25, 0.5, 0.75];
+const ROTATE_SPEED = [1.0, 1.5, 2.0];
 // Colors
 const white = vec3(1.0, 1.0, 1.0);
 const red = vec3(1.0, 0.0, 0.0);
@@ -167,6 +167,20 @@ function render() {
     // Points for spheres and cubes
     const sphere1 = sphere();
     const cube1 = cube();
+    const line1 = [vec4(-4.0, -3.0, 0.0, 1.0),
+        vec4(-4.0, -1.5, 0.0, 1.0),
+        vec4(0.0, -1.5, 0.0, 1.0),
+        vec4(0.0, 0.0, 0.0, 1.0),
+        vec4(0.0, -1.5, 0.0, 1.0),
+        vec4(4.0, -1.5, 0.0, 1.0),
+        vec4(4.0, -3.0, 0.0, 1.0)];
+    const line2 = [vec4(-2.0, -3.0, 0.0, 1.0),
+        vec4(-2.0, -1.5, 0.0, 1.0),
+        vec4(0.0, -1.5, 0.0, 1.0),
+        vec4(0.0, 0.0, 0.0, 1.0),
+        vec4(0.0, -1.5, 0.0, 1.0),
+        vec4(2.0, -1.5, 0.0, 1.0),
+        vec4(2.0, -3.0, 0.0, 1.0)];
 
     // Set camera view
     camMatrix = lookAt(eye, at, up);
@@ -176,39 +190,29 @@ function render() {
         camMatrix = mult(translate(0.0, 3.0, 0.0), mult(camMatrix, rotateY(angles[0][0])));
         gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
         draw(cube1, white);
-        const line1 = [vec4(-4.0, -3.0, 0.0, 1.0),
-            vec4(-4.0, -1.5, 0.0, 1.0),
-            vec4(0.0, -1.5, 0.0, 1.0),
-            vec4(0.0, 0.0, 0.0, 1.0),
-            vec4(0.0, -1.5, 0.0, 1.0),
-            vec4(4.0, -1.5, 0.0, 1.0),
-            vec4(4.0, -3.0, 0.0, 1.0)];
+        camMatrix = mult(camMatrix, rotateY(-2.0 * angles[0][0]));
+        gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
         drawLines(line1);
 
         // 1, 0
         stack.push(camMatrix);
-            camMatrix = mult(mult(camMatrix, translate(-4.0, -3.0, 0.0)), rotateY(angles[1][0]));
+            camMatrix = mult(mult(camMatrix, translate(-4.0, -3.0, 0.0)), rotateY(angles[0][0] + angles[1][0]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
             draw(sphere1, blue);
-            const line2 = [vec4(-2.0, -3.0, 0.0, 1.0),
-                vec4(-2.0, -1.5, 0.0, 1.0),
-                vec4(0.0, -1.5, 0.0, 1.0),
-                vec4(0.0, 0.0, 0.0, 1.0),
-                vec4(0.0, -1.5, 0.0, 1.0),
-                vec4(2.0, -1.5, 0.0, 1.0),
-                vec4(2.0, -3.0, 0.0, 1.0)];
+            camMatrix = mult(camMatrix, rotateY(-2.0 * angles[1][0]));
+            gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
             drawLines(line2);
 
             // 2, 0
             stack.push(camMatrix);
-                camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[2][0]));
+                camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[1][0] + angles[2][0]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
                 draw(cube1, green);
             camMatrix = stack.pop();
 
             // 2, 1
             stack.push(camMatrix);
-                camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[2][1]));
+                camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[1][0] + angles[2][1]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
                 draw(sphere1, red);
             camMatrix = stack.pop();
@@ -216,21 +220,23 @@ function render() {
 
         // 1, 1
         stack.push(camMatrix);
-            camMatrix = mult(mult(camMatrix, translate(4.0, -3.0, 0.0)), rotateY(angles[1][1]));
+            camMatrix = mult(mult(camMatrix, translate(4.0, -3.0, 0.0)), rotateY(angles[0][0] + angles[1][1]));
             gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
             draw(cube1, fuscia);
+            camMatrix = mult(camMatrix, rotateY(-2.0 * angles[1][1]));
+            gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
             drawLines(line2);
 
             // 2, 2
             stack.push(camMatrix);
-                camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[2][2]));
+                camMatrix = mult(mult(camMatrix, translate(-2.0, -3.0, 0.0)), rotateY(angles[1][1] + angles[2][2]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
                 draw(sphere1, babyBlue);
             camMatrix = stack.pop();
 
             // 2, 3
             stack.push(camMatrix);
-                camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[2][3]));
+                camMatrix = mult(mult(camMatrix, translate(2.0, -3.0, 0.0)), rotateY(angles[1][1] + angles[2][3]));
                 gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
                 draw(cube1, yellow);
             camMatrix = stack.pop();
