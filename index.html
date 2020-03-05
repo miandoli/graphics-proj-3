@@ -6,7 +6,7 @@
 
     <script id="vshader" type="x-shader/x-vertex">
 
-	attribute vec4 vPosition;
+	attribute vec4 vPosition, fPosition;
 	attribute vec4 vColor;
 	attribute vec4 vNormal;
 	attribute vec4 fNormal;
@@ -21,14 +21,18 @@
 	uniform bool isFlat;
 
 	void main() {
-	    vec3 pos = (modelMatrix * vPosition).xyz;
+	    vec3 pos, N;
+	    if (isFlat) {
+	        pos = (modelMatrix * fPosition).xyz;
+	        N = normalize(modelMatrix * fNormal).xyz;
+	    } else {
+	        pos = (modelMatrix * vPosition).xyz;
+	        N = normalize(modelMatrix * vNormal).xyz;
+	    }
 
         vec3 L = normalize(lightPosition.xyz - pos);
-        vec3 fN = normalize(modelMatrix * fNormal).xyz;
-        vec3 vN = normalize(modelMatrix * vNormal).xyz;
-
         vec3 V = normalize(-pos);
-        vec3 R = (2.0 * dot(L, vN) * vN) - L;
+        vec3 R = (2.0 * dot(L, N) * N) - L;
 
         vec4 diffuse = vec4(0.0, 0.0, 0.0, 0.0);
         vec4 specular = vec4(0.0, 0.0, 0.0, 0.0);
@@ -37,11 +41,7 @@
         vec3 lightDir = normalize(vec3(-0.1, 0, -1));
 
         if (dot(L, -lightDir) > coneAngle) {
-            if (isFlat) {
-                diffuse = diffuseProduct * dot(L, fN);
-            } else {
-                diffuse = diffuseProduct * dot(L, vN);
-            }
+            diffuse = diffuseProduct * dot(L, N);
             specular = specularProduct * pow(max(dot(V, R), 0.0), shininess);
         }
 

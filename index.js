@@ -21,7 +21,7 @@ function main() {
     preRender();
 }
 
-const SUB_DIVISIONS = 5;
+const SUB_DIVISIONS = 4;
 const lightPosition = vec4(5.0, 0.0, 25.0, 0.0);
 const lightAmbient = vec4(0.3, 0.3, 0.3, 1.0);
 const lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
@@ -255,7 +255,7 @@ function render() {
 }
 
 // Draws the shape along with its color
-function draw(points, color, isSphere) {
+function draw(points, color) {
     // Gets the normals for the vertexes
     let vNormals = [];
     for (let i = 0; i < points.length; i++) {
@@ -263,27 +263,43 @@ function draw(points, color, isSphere) {
         vNormals.push(point[0], point[1], point[2], 0.0);
     }
 
-    // Gets the surface normals
+    // Gets the surface normals and centers
     let fNormals = [];
+    let centerPoints = [];
     for (let i = 0; i < points.length; i += 3) {
-        const norm = calcNorm(points[i], points[i + 1], points[i + 2], isSphere);
-        fNormals.push(norm[0], norm[1], norm[2], 0.0);
-        fNormals.push(norm[0], norm[1], norm[2], 0.0);
-        fNormals.push(norm[0], norm[1], norm[2], 0.0);
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2];
+        const norm = calcNorm(p2, p1, p3);
+        const center = getCenter(p1, p2, p3);
+        for (let j = 0; j < 3; j++) {
+            fNormals.push(norm[0], norm[1], norm[2], 0.0);
+            centerPoints.push(center);
+        }
     }
 
     // Flatten the shapes' points
-    const fPoints = flatten(points);
+    const flattenPoints = flatten(points);
 
     // Create the buffer for the vertexes
     const vBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, vBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, fPoints, gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, flattenPoints, gl.STATIC_DRAW);
 
     // Set up the memory for the vertexes
     const vPosition = gl.getAttribLocation(program, "vPosition");
     gl.enableVertexAttribArray(vPosition);
     gl.vertexAttribPointer(vPosition, 4, gl.FLOAT, false, 0, 0);
+
+    // Create the buffer for the vertexes (for flat shading)
+    const fBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, fBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(centerPoints), gl.STATIC_DRAW);
+
+    // Set up the memory for the vertexes (for flat shading)
+    const fPosition = gl.getAttribLocation(program, "fPosition");
+    gl.enableVertexAttribArray(fPosition);
+    gl.vertexAttribPointer(fPosition, 4, gl.FLOAT, false, 0, 0);
 
     // Create the buffer for the normals
     const nBuffer = gl.createBuffer();
@@ -315,7 +331,7 @@ function draw(points, color, isSphere) {
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
 
     // Draw triangles
-    gl.drawArrays(gl.TRIANGLES, 0, fPoints.length);
+    gl.drawArrays(gl.TRIANGLES, 0, flattenPoints.length);
 }
 
 // Draws the list of points as a line
@@ -346,14 +362,19 @@ function drawLines(points) {
 
 }
 
-// Calculates the normal of the trianlge using the Newell method
-function calcNorm(p2, p1, p3) {
+// Calculates the normal of the triangle using the Newell method
+function calcNorm(p1, p2, p3) {
     // Calculates the two vectors from the points
     const u = [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]; //p2 - p1
     const v = [p3[0] - p1[0], p3[1] - p1[1], p3[2] - p1[2]]; // p3 - p1
     // Newell method
     let n = vec4(u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0], 1.0);
     return vec4(-n[0], -n[1], -n[2], 1.0);
+}
+
+// Gets the center of a triangle
+function getCenter(p1, p2, p3) {
+    return vec4((p1[0] + p2[0] + p3[0]) / 3.0, (p1[1] + p2[1] + p3[1]) / 3.0, (p1[2] + p2[2] + p3[2]) / 3.0, 1.0);
 }
 
 // Handle the key press events
