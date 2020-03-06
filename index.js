@@ -23,6 +23,7 @@ function main() {
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
 
+    // Load images
     stone = new Image();
     stone.crossOrigin = "";
     stone.src = "http://web.cs.wpi.edu/~jmcuneo/stones.bmp";
@@ -65,6 +66,7 @@ const fuscia = vec4(1.0, 0.0, 1.0, 1.0);
 const yellow = vec4(1.0, 1.0, 0.3, 1.0);
 const gray = vec4(0.6, 0.6, 0.6, 1.0);
 
+// Light and material values
 const lightPosition = vec4(7.0, -2.0, 30.0, 0.0);
 const lightAmbient = vec4(0.3, 0.3, 0.3, 1.0);
 const lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
@@ -172,6 +174,7 @@ function preRender() {
     render();
 }
 
+// Camera values
 let fov = 45;
 let eyeX = 18.0;
 let eyeY = 1.0;
@@ -295,6 +298,7 @@ function render() {
     requestAnimationFrame(render);
 }
 
+// Shadow matrix
 const m = mat4();
 m[3][3] = 0;
 m[3][2] = -1 / lightPosition[2];
@@ -380,6 +384,7 @@ function draw(points, color) {
     gl.uniform1i(gl.getUniformLocation(program, "isReflection"), isReflection);
     gl.uniform1i(gl.getUniformLocation(program, "isRefraction"), isRefraction);
 
+    // Check if the textures have loaded
     if (isReflection === 1 || isRefraction) {
         if (loadedEnv !== 6) {
             configureCubeMap();
@@ -465,7 +470,7 @@ function drawOther(points, color, isLine, type="none") {
             }
         }
 
-
+        // Texture buffer
         const tBuffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer );
         gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW );
@@ -498,6 +503,7 @@ function getCenter(p1, p2, p3) {
     return vec4((p1[0] + p2[0] + p3[0]) / 3.0, (p1[1] + p2[1] + p3[1]) / 3.0, (p1[2] + p2[2] + p3[2]) / 3.0, 1.0);
 }
 
+// Gets the coords for a given plane
 function getPlane(num) {
     const size = 50.0;
     const xOffset = -10.0;
@@ -520,6 +526,7 @@ function getPlane(num) {
     }
 }
 
+// Configures the 2D texture without image
 function configure2DMap() {
     const texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE0);
@@ -536,6 +543,7 @@ function configure2DMap() {
     gl.uniform1i(gl.getUniformLocation(program, "texture"), 0);
 }
 
+// Configures the 2D texture with image
 function configure2DMapImage(image) {
     const texture = gl.createTexture();
     gl.activeTexture(gl.TEXTURE1);
@@ -553,6 +561,7 @@ function configure2DMapImage(image) {
     gl.uniform1i(gl.getUniformLocation(program, "texture"), 1);
 }
 
+// Configures the cube texture without image
 function configureCubeMap() {
     const cubeMap = gl.createTexture();
     gl.activeTexture(gl.TEXTURE2);
@@ -574,6 +583,7 @@ function configureCubeMap() {
     gl.uniform1i(gl.getUniformLocation(program, "texMap"), 2);
 }
 
+// Configures the cube texture with image
 function configureCubeMapImage() {
     const cubeMap = gl.createTexture();
     gl.activeTexture(gl.TEXTURE3);
@@ -595,6 +605,7 @@ function configureCubeMapImage() {
     gl.uniform1i(gl.getUniformLocation(program, "texMap"), 3);
 }
 
+// Control values
 let isTextured = 1;
 let isShadows = true;
 let isReflection = 0;
@@ -641,6 +652,7 @@ document.onkeypress = function(e) {
     }
 };
 
+// Coord slider
 function slider(coord) {
     switch (coord) {
         case "x":
@@ -655,10 +667,12 @@ function slider(coord) {
     }
 }
 
+// Fov slider
 function fovChange() {
     fov = document.getElementById("fov").value;
 }
 
+// Speed slider
 function speed(layer) {
     ROTATE_SPEED[layer - 1] = document.getElementById("speed" + layer).value / 10.0;
 }
