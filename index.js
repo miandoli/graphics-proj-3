@@ -1,4 +1,9 @@
-let gl;
+let gl, stone, grass;
+let env = [];
+let loadedStone = false;
+let loadedGrass = false;
+let loadedEnv = 0;
+
 function main() {
     // Retrieve <canvas> element
     const canvas = document.getElementById('webgl');
@@ -18,6 +23,32 @@ function main() {
     gl.enable(gl.CULL_FACE);
     gl.cullFace(gl.BACK);
 
+    stone = new Image();
+    stone.crossOrigin = "";
+    stone.src = "http://web.cs.wpi.edu/~jmcuneo/stones.bmp";
+    stone.onload = function() {
+        loadedStone = true;
+    };
+    grass = new Image();
+    grass.crossOrigin = "";
+    grass.src = "http://web.cs.wpi.edu/~jmcuneo/grass.bmp";
+    grass.onload = function() {
+        loadedGrass = true;
+    };
+    const links = ["http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvnegx.bmp", "http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvnegy.bmp",
+        "http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvnegz.bmp", "http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvposx.bmp",
+        "http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvposy.bmp", "http://web.cs.wpi.edu/~jmcuneo/env_map_sides/nvposz.bmp"];
+    for (let i = 0; i < links.length; i++) {
+        let newEnv = new Image();
+        newEnv.crossOrigin = "";
+        newEnv.src = links[i];
+        newEnv.onload = function() {
+            loadedEnv++;
+            console.log(loadedEnv);
+        };
+        env[i] = newEnv;
+    }
+
     preRender();
 }
 
@@ -32,8 +63,9 @@ const green = vec4(0.0, 1.0, 0.0, 1.0);
 const babyBlue = vec4(0.25, 1.0, 0.75, 1.0);
 const fuscia = vec4(1.0, 0.0, 1.0, 1.0);
 const yellow = vec4(1.0, 1.0, 0.3, 1.0);
+const gray = vec4(0.6, 0.6, 0.6, 1.0);
 
-const lightPosition = vec4(5.0, 0.0, 25.0, 0.0);
+const lightPosition = vec4(7.0, -2.0, 30.0, 0.0);
 const lightAmbient = vec4(0.3, 0.3, 0.3, 1.0);
 const lightDiffuse = vec4(1.0, 1.0, 1.0, 1.0);
 const lightSpecular = vec4(1.0, 1.0, 1.0, 1.0);
@@ -124,11 +156,6 @@ function preRender() {
     const vPointSize = gl.getUniformLocation(program, "vPointSize");
     gl.uniform1f(vPointSize, 10.0);
 
-    // Set-up perspective view
-    const pers = perspective(60.0, 1, 0.1, 10000);
-    const projMatrix = gl.getUniformLocation(program, 'projMatrix');
-    gl.uniformMatrix4fv(projMatrix, false, flatten(pers));
-
     // Color
     gl.uniform4fv(gl.getUniformLocation(program, "lightPosition"), flatten(lightPosition));
     gl.uniform1f(gl.getUniformLocation(program, "shininess"), materialShininess);
@@ -145,7 +172,11 @@ function preRender() {
     render();
 }
 
-const eye = vec3(10.0, 5.0, 10.0);
+let fov = 45;
+let eyeX = 18.0;
+let eyeY = 1.0;
+let eyeZ = 18.0;
+let eye = vec3(eyeX, eyeY, eyeZ);
 const at = vec3(0.0, 0.0, 0.0);
 const up = vec3(0.0, 1.0, 0.0);
 
@@ -157,7 +188,7 @@ let angles = [
     [0.0, 0.0],
     [0.0, 0.0, 0.0, 0.0]
 ];
-const ROTATE_SPEED = [0.25, 0.5, 1.0];
+let ROTATE_SPEED = [0.25, 0.5, 1.0];
 function render() {
     // Clear the buffer bits
     gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -180,14 +211,20 @@ function render() {
         vec4(2.0, -1.5, 0.0, 1.0),
         vec4(2.0, -3.0, 0.0, 1.0)];
 
+    // Set-up perspective view
+    const pers = perspective(fov, 1, 0.1, 10000);
+    const projMatrix = gl.getUniformLocation(program, 'projMatrix');
+    gl.uniformMatrix4fv(projMatrix, false, flatten(pers));
+
     // Set camera view
+    eye = vec3(eyeX, eyeY, eyeZ);
     camMatrix = lookAt(eye, at, up);
     gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
 
     // Background planes
-    drawOther(getPlane(0), red, false);
-    drawOther(getPlane(1), blue, false);
-    drawOther(getPlane(2), green, false);
+    drawOther(getPlane(0), gray, false, "grass");
+    drawOther(getPlane(1), blue, false, "stone");
+    drawOther(getPlane(2), blue, false, "stone");
 
     // 0, 0
     stack.push(camMatrix);
@@ -257,6 +294,10 @@ function render() {
 
     requestAnimationFrame(render);
 }
+
+const m = mat4();
+m[3][3] = 0;
+m[3][2] = -1 / lightPosition[2];
 
 // Draws the shape along with its color
 function draw(points, color) {
@@ -335,13 +376,40 @@ function draw(points, color) {
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
     const specularProduct = mult(lightSpecular, white);
     gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
+    gl.uniform1i(gl.getUniformLocation(program, "isTexture"), 0);
+    gl.uniform1i(gl.getUniformLocation(program, "isReflection"), isReflection);
+    gl.uniform1i(gl.getUniformLocation(program, "isRefraction"), isRefraction);
+
+    if (isReflection === 1 || isRefraction) {
+        if (loadedEnv !== 6) {
+            configureCubeMap();
+        } else {
+            configureCubeMapImage();
+        }
+    }
 
     // Draw triangles
     gl.drawArrays(gl.TRIANGLES, 0, flattenPoints.length);
+
+    // Shadows
+    if (isShadows) {
+        stack.push(camMatrix);
+            // const shadow = mult(translate(lightPosition[0], lightPosition[1], lightPosition[2]), mult(m, translate(-lightPosition[0], -lightPosition[1], -lightPosition[2])));
+            const shadow1 = translate(-lightPosition[0], -lightPosition[1], -lightPosition[2]);
+            const shadow2 = mult(m, shadow1);
+            const shadow3 = mult(shadow2, translate(lightPosition[0] - 1, lightPosition[1] + 1, lightPosition[2] - 1));
+            camMatrix = mult(shadow3, camMatrix);
+            gl.uniformMatrix4fv(modelMatrix, false, flatten(camMatrix));
+            gl.uniform4fv(gl.getUniformLocation(program, "diffuseProduct"), flatten(black));
+            gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(black));
+            gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(mult(lightSpecular, black)));
+            gl.drawArrays(gl.TRIANGLES, 0, flattenPoints.length);
+        camMatrix = stack.pop();
+    }
 }
 
 // Draws points or background elements
-function drawOther(points, color, isLine) {
+function drawOther(points, color, isLine, type="none") {
     const fPoints = flatten(points);
 
     // Create the buffer for the vertexes
@@ -364,6 +432,48 @@ function drawOther(points, color, isLine) {
     gl.uniform4fv(gl.getUniformLocation(program, "ambientProduct"), flatten(ambientProduct));
     const specularProduct = mult(lightSpecular, black);
     gl.uniform4fv(gl.getUniformLocation(program, "specularProduct"), flatten(specularProduct));
+    gl.uniform1i(gl.getUniformLocation(program, "isReflection"), 0);
+    gl.uniform1i(gl.getUniformLocation(program, "isRefraction"), 0);
+    if (isLine) { // Lines don't get textured
+        gl.uniform1i(gl.getUniformLocation(program, "isTexture"), 0);
+    } else {
+        gl.uniform1i(gl.getUniformLocation(program, "isTexture"), isTextured);
+
+        // Set texture mapping
+        const minT = 0.0;
+        const maxT = 5.0;
+        const texCoord = [
+            vec2(minT, minT),
+            vec2(minT, maxT),
+            vec2(maxT, maxT),
+            vec2(maxT, minT)
+        ];
+        let texCoordsArray; // Grass and stone have slightly different texture mapping
+        if (type === "stone") {
+            texCoordsArray = [texCoord[1], texCoord[2], texCoord[3], texCoord[1], texCoord[3], texCoord[0]];
+            if (!loadedStone) { // Load default texture until image is loaded
+                configure2DMap();
+            } else {
+                configure2DMapImage(stone);
+            }
+        } else {
+            texCoordsArray = [texCoord[1], texCoord[3], texCoord[0], texCoord[1], texCoord[2], texCoord[3]];
+            if (!loadedGrass) { // Load default texture until image is loaded
+                configure2DMap();
+            } else {
+                configure2DMapImage(grass);
+            }
+        }
+
+
+        const tBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, tBuffer );
+        gl.bufferData(gl.ARRAY_BUFFER, flatten(texCoordsArray), gl.STATIC_DRAW );
+
+        const tPosition = gl.getAttribLocation(program, "vTexCoord");
+        gl.vertexAttribPointer(tPosition, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(tPosition);
+    }
 
     // Draw lines or triangles
     if (isLine) {
@@ -410,6 +520,85 @@ function getPlane(num) {
     }
 }
 
+function configure2DMap() {
+    const texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+        new Uint8Array([100, 100, 100, 255, 100, 100, 100, 255, 100, 100, 100, 255, 100, 100, 100, 255])
+    );
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.uniform1i(gl.getUniformLocation(program, "texture"), 0);
+}
+
+function configure2DMapImage(image) {
+    const texture = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+
+    gl.texImage2D(
+        gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.uniform1i(gl.getUniformLocation(program, "texture"), 1);
+}
+
+function configureCubeMap() {
+    const cubeMap = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE2);
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeMap);
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, gray);
+
+    gl.uniform1i(gl.getUniformLocation(program, "texMap"), 2);
+}
+
+function configureCubeMapImage() {
+    const cubeMap = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE3);
+    gl.bindTexture(gl.TEXTURE_CUBE_MAP, cubeMap);
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_CUBE_MAP, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_X, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[0]);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_X, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[1]);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Y, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[2]);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[3]);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_POSITIVE_Z, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[4]);
+    gl.texImage2D(gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, env[5]);
+
+    gl.uniform1i(gl.getUniformLocation(program, "texMap"), 3);
+}
+
+let isTextured = 1;
+let isShadows = true;
+let isReflection = 0;
+let isRefraction = 0;
 // Handle the key press events
 document.onkeypress = function(e) {
     // Key press events
@@ -433,5 +622,43 @@ document.onkeypress = function(e) {
         case 'M': // Flat lighting
             gl.uniform1i(gl.getUniformLocation(program, "isFlat"), 1);
             break;
+        case 'a': // Shadows
+        case 'A':
+            isShadows = !isShadows;
+            break;
+        case 'b': // Textures
+        case 'B':
+            isTextured = isTextured === 1 ? 0 : 1;
+            break;
+        case 'c': // Reflections
+        case 'C':
+            isReflection = isReflection === 1 ? 0 : 1;
+            break;
+        case 'd': // Refractions
+        case 'D':
+            isRefraction = isRefraction === 1 ? 0 : 1;
+            break;
     }
 };
+
+function slider(coord) {
+    switch (coord) {
+        case "x":
+            eyeX = document.getElementById("cameraX").value;
+            break;
+        case "y":
+            eyeY = document.getElementById("cameraY").value;
+            break;
+        case "z":
+            eyeZ = document.getElementById("cameraZ").value;
+            break;
+    }
+}
+
+function fovChange() {
+    fov = document.getElementById("fov").value;
+}
+
+function speed(layer) {
+    ROTATE_SPEED[layer - 1] = document.getElementById("speed" + layer).value / 10.0;
+}

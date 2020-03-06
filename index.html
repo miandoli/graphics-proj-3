@@ -17,8 +17,11 @@
 	uniform mat4 modelMatrix;
 	uniform float shininess;
 	varying vec4 fColor;
+	attribute vec2 vTexCoord;
+	varying vec2 fTexCoord;
 	uniform float coneAngle;
 	uniform bool isFlat;
+	varying vec3 reflection, refraction;
 
 	void main() {
 	    vec3 pos, N;
@@ -33,6 +36,13 @@
         vec3 L = normalize(lightPosition.xyz - pos);
         vec3 V = normalize(-pos);
         vec3 R = (2.0 * dot(L, N) * N) - L;
+
+        fTexCoord = vTexCoord;
+
+        vec3 refN = normalize((modelMatrix * vNormal).xyz);
+
+        reflection = reflect(pos, refN);
+        refraction = refract(pos, refN, 0.95);
 
         vec4 diffuse = vec4(0.0, 0.0, 0.0, 0.0);
         vec4 specular = vec4(0.0, 0.0, 0.0, 0.0);
@@ -57,9 +67,29 @@
 
     precision mediump float;
 	varying vec4 fColor;
+	uniform sampler2D texture;
+    varying vec2 fTexCoord;
+    uniform bool isTexture;
+    uniform bool isReflection, isRefraction;
+    varying vec3 reflection, refraction;
+    uniform samplerCube texMap;
 
 	void main() {
-	    gl_FragColor = fColor;
+	    if (isTexture) {
+            gl_FragColor = texture2D(texture, fTexCoord);
+        } else if (isReflection && isRefraction) {
+            vec4 texColor1 = textureCube(texMap, reflection);
+            vec4 texColor2 = textureCube(texMap, refraction);
+            gl_FragColor = fColor*texColor1*texColor2;
+        } else if (isReflection) {
+            vec4 texColor = textureCube(texMap, reflection);
+            gl_FragColor = fColor*texColor;
+        } else if (isRefraction) {
+            vec4 texColor = textureCube(texMap, refraction);
+            gl_FragColor = fColor*texColor;
+        } else {
+	        gl_FragColor = fColor;
+	    }
   	}
 	</script>
 
@@ -90,6 +120,23 @@
             <p><strong>P: </strong>Decrease spotlight cut off angle (decrease cone angle).</p>
             <p><strong>m: </strong>The scene is shaded using Gouraud lighting (smooth shading).</p>
             <p><strong>M: </strong>The scene is shaded using flat shading.</p>
+            <p><strong>A: </strong>Toggle shadows ON/OFF.</p>
+            <p><strong>B: </strong>Toggle textures ON/OFF.</p>
+            <p><strong>C: </strong>Toggle reflections ON/OFF.</p>
+            <p><strong>D: </strong>Toggle refractions ON/OFF.</p>
+            <div class="slidecontainer">
+                <label for="cameraX">Camera X: </label><input type="range" min="1" max="25" value="18" class="slider" id="cameraX" onchange="slider('x');">
+                <label for="cameraY">Camera Y: </label><input type="range" min="0" max="5" value="1" class="slider" id="cameraY" onchange="slider('y');">
+                <label for="cameraZ">Camera Z: </label><input type="range" min="1" max="25" value="18" class="slider" id="cameraZ" onchange="slider('z');">
+            </div>
+            <div class="slidecontainer">
+                <label for="fov">FOV: </label><input type="range" min="30" max="90" value="45" class="slider" id="fov" onchange="fovChange();">
+            </div>
+            <div class="slidecontainer">
+                <label for="speed1">Layer 1 Speed: </label><input type="range" min="0" max="100" value="3" class="slider" id="speed1" onchange="speed(1);">
+                <label for="speed2">Layer 2 Speed: </label><input type="range" min="0" max="100" value="5" class="slider" id="speed2" onchange="speed(2);">
+                <label for="speed3">Layer 3 Speed: </label><input type="range" min="0" max="100" value="10" class="slider" id="speed3" onchange="speed(3);">
+            </div>
         </div>
     </div>
 </div>
